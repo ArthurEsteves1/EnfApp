@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import {View, Text, TextInput, StyleSheet, Alert, Image, FlatList, TouchableOpacity } from 'react-native';
+import {View, Text, TextInput, Button, StyleSheet, Alert, Image, FlatList, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-get-random-values';
 import CryptoJS from 'crypto-js';
-import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 
 const Tab = createBottomTabNavigator();
@@ -15,6 +15,82 @@ const decryptPassword = (encryptedPassword) => {
 const bytes = CryptoJS.AES.decrypt(encryptedPassword, encryptionKey);
 return bytes.toString(CryptoJS.enc.Utf8);
 };
+
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+
+  const handleLoginSuccess = () => setIsLoggedIn(true);
+  const handleRegisterSuccess = () => setShowRegister(false);
+  const handleLogout = () => setIsLoggedIn(false);
+  return (
+    <NavigationContainer>
+      {isLoggedIn ? (
+        <Tab.Navigator screenOptions={{
+          headerRight: () => (
+            <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
+              <Ionicons name="log-out-outline" size={24} color="#FF6347" />
+            </TouchableOpacity>
+          ),
+        }}>
+          <Tab.Screen
+            name="Saúde"
+            component={SaudeScreen}
+            options={{
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="heart-outline" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="Atividade"
+            component={AtividadesScreen}
+            options={{
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="bicycle-outline" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="Descanso"
+            component={DescansoScreen}
+            options={{
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="bed-outline" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="Nutrição"
+            component={NutricaoScreen}
+            options={{
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons name="fast-food-outline" size={size} color={color} />
+              ),
+            }}
+          />
+        </Tab.Navigator>
+      ) : (
+        <View style={{ flex: 1 }}>
+          {showRegister ? (
+            <RegisterScreen onRegisterSuccess={handleRegisterSuccess} />
+          ) : (
+            <LoginScreen onLoginSuccess={handleLoginSuccess} />
+          )}
+
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: '#191970' }]}
+            onPress={() => setShowRegister(!showRegister)}
+          >
+            <Text style={styles.addButtonText}>
+              {showRegister ? "Voltar ao Login" : "Criar uma conta"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </NavigationContainer>
+  );
+}
 
 function RegisterScreen({ onRegisterSuccess }) {
 const [username, setUsername] = useState('');
@@ -252,6 +328,8 @@ function AtividadesScreen() {
   const [exercises, setExercises] = useState({});
   const [exercise, setExercise] = useState('');
   const [selectedDay, setSelectedDay] = useState('Segunda');
+  const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   const daysOfWeek = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
@@ -263,6 +341,17 @@ function AtividadesScreen() {
       }
     };
     fetchExercises();
+
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Permissão de localização negada');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setLocation(location);
+    })();
   }, []);
 
   const handleAddExercise = async () => {
@@ -281,6 +370,16 @@ function AtividadesScreen() {
     const updatedExercises = { ...exercises, [selectedDay]: updatedDayExercises };
     setExercises(updatedExercises);
     await AsyncStorage.setItem('exercises', JSON.stringify(updatedExercises));
+  };
+
+  const handleGetLocation = async () => {
+    try {
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
+      Alert.alert("Localização atualizada", JSON.stringify(currentLocation.coords));
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -326,6 +425,23 @@ function AtividadesScreen() {
       >
         <Text style={styles.addButtonText}>Limpar tudo</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.locationButton, { backgroundColor: '#1E90FF' }]}
+        onPress={handleGetLocation}
+      >
+        <Text style={styles.addButtonText}>Atualizar Localização</Text>
+      </TouchableOpacity>
+
+      {errorMsg ? (
+        <Text style={{ color: 'red', marginTop: 10 }}>{errorMsg}</Text>
+      ) : (
+        location && (
+          <Text style={{ marginTop: 10 }}>
+            Localização atual: Latitude {location.coords.latitude}, Longitude {location.coords.longitude}
+          </Text>
+        )
+      )}
 
       <FlatList
         data={exercises[selectedDay] || []}
@@ -659,79 +775,3 @@ const styles = StyleSheet.create({
 });
 
 export { styles };
-
-export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
-
-  const handleLoginSuccess = () => setIsLoggedIn(true);
-  const handleRegisterSuccess = () => setShowRegister(false);
-  const handleLogout = () => setIsLoggedIn(false);
-  return (
-    <NavigationContainer>
-      {isLoggedIn ? (
-        <Tab.Navigator screenOptions={{
-          headerRight: () => (
-            <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
-              <Ionicons name="log-out-outline" size={24} color="#FF6347" />
-            </TouchableOpacity>
-          ),
-        }}>
-          <Tab.Screen
-            name="Saúde"
-            component={SaudeScreen}
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="heart-outline" size={size} color={color} />
-              ),
-            }}
-          />
-          <Tab.Screen
-            name="Atividade"
-            component={AtividadesScreen}
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="bicycle-outline" size={size} color={color} />
-              ),
-            }}
-          />
-          <Tab.Screen
-            name="Descanso"
-            component={DescansoScreen}
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="bed-outline" size={size} color={color} />
-              ),
-            }}
-          />
-          <Tab.Screen
-            name="Nutrição"
-            component={NutricaoScreen}
-            options={{
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons name="fast-food-outline" size={size} color={color} />
-              ),
-            }}
-          />
-        </Tab.Navigator>
-      ) : (
-        <View style={{ flex: 1 }}>
-          {showRegister ? (
-            <RegisterScreen onRegisterSuccess={handleRegisterSuccess} />
-          ) : (
-            <LoginScreen onLoginSuccess={handleLoginSuccess} />
-          )}
-
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: '#191970' }]}
-            onPress={() => setShowRegister(!showRegister)}
-          >
-            <Text style={styles.addButtonText}>
-              {showRegister ? "Voltar ao Login" : "Criar uma conta"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </NavigationContainer>
-  );
-}
