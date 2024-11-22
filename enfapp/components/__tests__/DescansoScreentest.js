@@ -1,5 +1,5 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import DescansoScreen from './DescansoScreen'; 
+import DescansoScreen from './DescansoScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
@@ -13,10 +13,11 @@ jest.mock('react-native', () => ({
 
 describe('DescansoScreen', () => {
   beforeEach(() => {
-    AsyncStorage.clear(); 
+    AsyncStorage.clear();
+    jest.clearAllMocks(); 
   });
 
-  test('deve renderizar corretamente', async () => {
+  test('deve renderizar corretamente', () => {
     const { getByText, getByPlaceholderText } = render(<DescansoScreen />);
 
     expect(getByText('Horas de Sono')).toBeTruthy();
@@ -30,7 +31,6 @@ describe('DescansoScreen', () => {
     const addButton = getByText('Adicionar Horas de Sono');
 
     fireEvent.changeText(input, '7');
-
     fireEvent.press(addButton);
 
     await waitFor(() => {
@@ -47,7 +47,7 @@ describe('DescansoScreen', () => {
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
-        'Erro', 
+        'Erro',
         'Informe as horas de sono'
       );
     });
@@ -57,10 +57,9 @@ describe('DescansoScreen', () => {
     const { getByText } = render(<DescansoScreen />);
 
     const tercaButton = getByText('Terça');
-    
     fireEvent.press(tercaButton);
 
-    expect(getByText('Terça')).toHaveStyle({ backgroundColor: 'lightblue' });
+    expect(tercaButton).toHaveStyle({ backgroundColor: 'lightblue' });
   });
 
   test('deve limpar registro de horas de sono de um dia ao pressionar o "X"', async () => {
@@ -73,7 +72,6 @@ describe('DescansoScreen', () => {
     fireEvent.press(addButton);
 
     const deleteButton = getByText('✕');
-
     fireEvent.press(deleteButton);
 
     await waitFor(() => {
