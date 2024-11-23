@@ -3,7 +3,10 @@ import DescansoScreen from './DescansoScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
+jest.mock('react-native', () => require('react-native/jest/mock'));
+
 jest.mock('@react-native-async-storage/async-storage');
+
 jest.mock('react-native', () => ({
   ...jest.requireActual('react-native'),
   Alert: {
